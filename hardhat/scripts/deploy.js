@@ -1,12 +1,19 @@
 const { ethers } = require("hardhat")
+const { WHITELIST_CONTRACT_ADDRESS, METADATA_URL } = require("../constants")
 
 async function main() {
-  const whitelistContractFactory = await ethers.getContractFactory("Whitelist")
-  const whitelistContract = await whitelistContractFactory.deploy(10)
-  await whitelistContract.deployed()
-  console.log("Whitelist Contract Address: ", whitelistContract.address)
+  const nftContractFactory = await ethers.getContractFactory("CryptoDevs")
+  const nftContract = await nftContractFactory.deploy(
+    METADATA_URL,
+    WHITELIST_CONTRACT_ADDRESS
+  )
+  await nftContract.deployed()
+  console.log("CryptoDevs Contract Address: ", nftContract.address)
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => console.error(error))
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
