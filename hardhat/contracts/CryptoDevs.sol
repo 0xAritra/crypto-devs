@@ -43,7 +43,7 @@ contract CryptoDevs is ERC721Enumerable, Ownable {
             "You are not in the whitelist!"
         );
         require(tokenIds < maxTokenIds, "All NFTs have been minted :(");
-        require(msg.value > _price);
+        require(msg.value >= _price, "Ether sent is not correct");
 
         tokenIds++;
         _safeMint(msg.sender, tokenIds);
@@ -55,7 +55,7 @@ contract CryptoDevs is ERC721Enumerable, Ownable {
             "Presale is running!"
         );
         require(tokenIds < maxTokenIds, "All NFTs have been minted :(");
-        require(msg.value > _price);
+        require(msg.value >= _price, "Ether sent is not correct");
 
         tokenIds++;
         _safeMint(msg.sender, tokenIds);

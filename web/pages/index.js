@@ -23,7 +23,7 @@ export default function Home() {
         value: utils.parseEther("0.001"),
       })
       setLoading(true)
-      tx.wait()
+      await tx.wait()
       setLoading(false)
       window.alert("You minted an CryptoDevs NFT!")
     } catch (error) {
@@ -39,7 +39,7 @@ export default function Home() {
         value: utils.parseEther("0.001"),
       })
       setLoading(true)
-      tx.wait()
+      await tx.wait()
       setLoading(false)
       window.alert("You minted an CryptoDevs NFT!")
     } catch (error) {
@@ -53,7 +53,7 @@ export default function Home() {
       const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, signer)
       const tx = await nftContract.startPresale()
       setLoading(true)
-      tx.wait()
+      await tx.wait()
       setLoading(false)
       await checkIfPresaleStarted()
     } catch (error) {
