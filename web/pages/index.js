@@ -1,17 +1,125 @@
 import Head from "next/head"
-import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import styles from "../styles/Home.module.css"
 import Web3Modal from "web3modal"
-import { providers, Contract } from "ethers"
-import { WHITELIST_ADDRESS, ABI } from "../constants"
+import { providers, Contract, utils } from "ethers"
+import { NFT_CONTRACT_ADDRESS, ABI } from "../constants"
 
 export default function Home() {
   const [walletConnected, setWalletConnected] = useState(false)
-  const [numOfWhitelisted, setNumOfWhitelisted] = useState(0)
-  const [joinedWhitelist, setJoinedWhitelist] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
+  const [presaleStarted, setPresaleStarted] = useState(false)
+  const [presaleEnded, setPresaleEnded] = useState(false)
+  const [tokenIdsMinted, setTokenIdsMinted] = useState("0")
+
   const Web3ModalRef = useRef()
+
+  const presaleMint = async () => {
+    try {
+      const signer = await getProviderOrSigner(true)
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, signer)
+      const tx = await nftContract.presaleMint({
+        value: utils.parseEther("0.001"),
+      })
+      setLoading(true)
+      tx.wait()
+      setLoading(false)
+      window.alert("You minted an CryptoDevs NFT!")
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const publicMint = async () => {
+    try {
+      const signer = await getProviderOrSigner(true)
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, signer)
+      const tx = await nftContract.mint({
+        value: utils.parseEther("0.001"),
+      })
+      setLoading(true)
+      tx.wait()
+      setLoading(false)
+      window.alert("You minted an CryptoDevs NFT!")
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const startPresale = async () => {
+    try {
+      const signer = await getProviderOrSigner(true)
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, signer)
+      const tx = await nftContract.startPresale()
+      setLoading(true)
+      tx.wait()
+      setLoading(false)
+      await checkIfPresaleStarted()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const checkIfPresaleStarted = async () => {
+    try {
+      const provider = await getProviderOrSigner()
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, provider)
+      const _presaleStarted = await nftContract.presaleStarted()
+      if (!_presaleStarted) {
+        await getOwner()
+      }
+      setPresaleStarted(_presaleStarted)
+      return _presaleStarted
+    } catch (error) {
+      console.error(error)
+      return false
+    }
+  }
+
+  const checkIfPresaleEnded = async () => {
+    try {
+      const provider = await getProviderOrSigner()
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, provider)
+      const _presaleEnded = await nftContract.presaleEnded()
+      const hasEnded = _presaleEnded.lt(Math.floor(Date.now() / 1000))
+      if (hasEnded) {
+        setPresaleEnded(true)
+      } else {
+        setPresaleEnded(false)
+      }
+      return hasEnded
+    } catch (error) {
+      console.error(error)
+      setPresaleEnded(false)
+    }
+  }
+
+  const getOwner = async () => {
+    try {
+      const provider = await getProviderOrSigner()
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, provider)
+      const _owner = await nftContract.owner()
+      const signer = provider.getSigner()
+      const address = await signer.getAddress()
+      if (_owner.toLowerCase() === address.toLowerCase()) {
+        setIsOwner(true)
+      } else setIsOwner(false)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const getTokenIdsMinted = async () => {
+    try {
+      const provider = await getProviderOrSigner()
+      const nftContract = new Contract(NFT_CONTRACT_ADDRESS, ABI, provider)
+      const _tokenIds = await nftContract.tokenIds()
+      setTokenIdsMinted(_tokenIds.toString())
+    } catch (error) {
+      console.error(error)
+    }
+  }
 
   const getProviderOrSigner = async (needSigner = false) => {
     try {
@@ -33,82 +141,10 @@ export default function Home() {
     }
   }
 
-  const checkIfAddressIsWhitelisted = async () => {
-    try {
-      const signer = await getProviderOrSigner(true)
-      const whitelistContract = new Contract(WHITELIST_ADDRESS, ABI, signer)
-      const address = await signer.getAddress()
-      // console.log(address)
-      const _joinedWhitelist = await whitelistContract.whitelistedAddresses(
-        address
-      )
-      setJoinedWhitelist(_joinedWhitelist)
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const getNumberOfWhitelisted = async () => {
-    try {
-      const provider = await getProviderOrSigner()
-      const whitelistContract = new Contract(WHITELIST_ADDRESS, ABI, provider)
-      const _numOfWhitelisted =
-        await whitelistContract.numAddressesWhitelisted()
-      console.log(_numOfWhitelisted)
-      setNumOfWhitelisted(_numOfWhitelisted.toString())
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const addAddressToWhitelist = async () => {
-    try {
-      const signer = await getProviderOrSigner(true)
-      const whitelistContract = new Contract(WHITELIST_ADDRESS, ABI, signer)
-
-      const tx = await whitelistContract.addAddressToWhitelist()
-      setLoading(true)
-      await tx.wait()
-      setLoading(false)
-      await getNumberOfWhitelisted()
-      setJoinedWhitelist(true)
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const renderButton = () => {
-    if (walletConnected) {
-      if (joinedWhitelist) {
-        return (
-          <div className={styles.description}>
-            You are already in the whitelist.
-          </div>
-        )
-      } else if (loading) {
-        return <button className={styles.button}>Loading...</button>
-      } else {
-        return (
-          <button onClick={addAddressToWhitelist} className={styles.button}>
-            Join wailist!
-          </button>
-        )
-      }
-    } else {
-      return (
-        <button onClick={connectWallet} className={styles.button}>
-          Connect Wallet
-        </button>
-      )
-    }
-  }
-
   const connectWallet = async () => {
     try {
       await getProviderOrSigner()
       setWalletConnected(true)
-      checkIfAddressIsWhitelisted()
-      getNumberOfWhitelisted()
     } catch (error) {
       console.error(error)
     }
@@ -122,14 +158,80 @@ export default function Home() {
         disableInjectedProvider: false,
       })
       connectWallet()
+
+      const _presaleStarted = checkIfPresaleStarted()
+      if (_presaleStarted) {
+        checkIfPresaleEnded()
+      }
+
+      getTokenIdsMinted()
+
+      const presaleEndedInterval = setInterval(async () => {
+        const _presaleStarted = await checkIfPresaleStarted()
+        if (_presaleStarted) {
+          const _presaleEnded = await checkIfPresaleEnded()
+          if (_presaleEnded) {
+            clearInterval(presaleEndedInterval)
+          }
+        }
+      }, 5 * 1000)
+
+      setInterval(async () => {
+        await getTokenIdsMinted()
+      }, 5 * 1000)
     }
   }, [walletConnected])
+
+  const renderButton = () => {
+    if (!walletConnected) {
+      return (
+        <button className={styles.button} onClick={connectWallet}>
+          Connect Wallet
+        </button>
+      )
+    }
+
+    if (loading) return <button className={styles.button}>Loading...</button>
+
+    if (isOwner && !presaleStarted) {
+      return (
+        <button className={styles.button} onClick={startPresale}>
+          Start Presale...
+        </button>
+      )
+    }
+
+    if (!presaleStarted) {
+      return <div className={styles.description}>Presale hasn't started!</div>
+    }
+
+    if (presaleStarted && !presaleEnded) {
+      return (
+        <div>
+          <div className={styles.description}>
+            Presale Started! Mint if you are in the whitelist.
+          </div>
+          <button className={styles.button} onClick={presaleMint}>
+            Presale Mint 🚀
+          </button>
+        </div>
+      )
+    }
+
+    if (presaleStarted && presaleEnded) {
+      return (
+        <button className={styles.button} onClick={publicMint}>
+          Public Mint 🚀
+        </button>
+      )
+    }
+  }
 
   return (
     <div>
       <Head>
-        <title>Whitelist Dapp</title>
-        <meta name="description" content="Whitelist-DApp" />
+        <title>NFT Dapp</title>
+        <meta name="description" content="NFT-DApp" />
       </Head>
       <div className={styles.main}>
         <div>
@@ -138,12 +240,12 @@ export default function Home() {
             NFT collection for developers yay!
           </div>
           <div className={styles.description}>
-            {numOfWhitelisted} have joined the whitelist!
+            {tokenIdsMinted}/20 NFTs have been minted!
           </div>
           {renderButton()}
         </div>
         <div>
-          <img className={styles.image} src="./crypto-devs.svg" alt="" />
+          <img className={styles.image} src="./cryptodevs/0.svg" alt="" />
         </div>
       </div>
       <footer className={styles.footer}>Made with &#10084; by Ari xD</footer>
